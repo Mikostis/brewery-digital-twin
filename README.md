@@ -1,5 +1,7 @@
 # Brewery Digital Twin
 
+![CI](https://github.com/Mikostis/brewery-digital-twin/actions/workflows/ci.yml/badge.svg)
+
 Ένα mini βιομηχανικό digital twin για παρακολούθηση διεργασιών ζυθοποιείου.
 Δεδομένα αισθητήρων ρέουν από ανεξάρτητα gateways σε ένα time-series backend που
 αποθηκεύει τις ωμές μετρήσεις, εντοπίζει τιμές εκτός προδιαγραφών, και υπολογίζει
@@ -41,6 +43,7 @@ DB-specific κώδικα σε ένα layer — αν αλλάξει η βάση, 
 | HTTP client   | httpx               |
 | Frontend      | HTML + Chart.js     |
 | Testing       | pytest              |
+| CI            | GitHub Actions      |
 | Infra         | Docker Compose      |
 
 ## Εκτέλεση
@@ -48,7 +51,11 @@ DB-specific κώδικα σε ένα layer — αν αλλάξει η βάση, 
 Προαπαιτούμενα: Docker Desktop.
 
 ```bash
-cp .env.example .env        # συμπλήρωσε τα credentials
+# 1. Φτιάξε το .env από το παράδειγμα
+cp .env.example .env
+#    (Windows PowerShell: copy .env.example .env)
+
+# 2. Σήκωσε τα πάντα
 docker compose up --build
 ```
 
@@ -56,6 +63,21 @@ docker compose up --build
 - Interactive API docs (Swagger): `http://127.0.0.1:8000/docs`
 
 Το schema και τα seed data εφαρμόζονται αυτόματα στην πρώτη εκκίνηση.
+
+### Ρύθμιση `.env`
+
+Τα credentials της βάσης δεν είναι commit-αρισμένα στο repo (το `.env` είναι
+git-ignored). Αντίγραψε το `.env.example` σε `.env` — οι τιμές που ορίζεις εκεί
+**δημιουργούν** τον χρήστη και τη βάση μέσα στο container την πρώτη φορά, οπότε
+μπορούν να είναι οποιεσδήποτε (local-only):
+
+```
+POSTGRES_USER=brewery_admin
+POSTGRES_PASSWORD=ena_diko_sou_password
+POSTGRES_DB=brewery
+```
+
+Δεν χρειάζεται εγκατεστημένη PostgreSQL — η βάση τρέχει μέσα σε container.
 
 ## API
 
@@ -77,6 +99,7 @@ pytest
 
 Καλύπτουν καθαρή λογική (random walk + mean reversion του simulator) και business
 logic (υπολογισμός OEE, με mocking του data layer ώστε να τεστάρεται χωρίς βάση).
+Τρέχουν αυτόματα σε κάθε push μέσω GitHub Actions (βλ. badge στην κορυφή).
 
 ## Αρχιτεκτονικές Αποφάσεις
 
@@ -110,6 +133,7 @@ src/brewery_twin/    # application package (main, service, database, models, con
 scripts/simulator.py # standalone sensor simulator
 db/                  # schema.sql + seed.sql
 tests/               # pytest suite
+.github/workflows/   # CI pipeline (GitHub Actions)
 docker-compose.yml   # db + api + simulator
 Dockerfile
 ```
@@ -120,3 +144,28 @@ Dockerfile
 - Γενικευμένο anomaly detection για όλους τους τύπους αισθητήρων
 - Πλήρης υπολογισμός Performance στο OEE με production-rate counters
 - Διαχείριση batch lifecycle (έναρξη/λήξη παρτίδων)
+
+Πηγές / References
+Οι αρχιτεκτονικές και domain αποφάσεις στηρίχθηκαν σε επίσημη τεκμηρίωση και
+καθιερωμένες πηγές του κλάδου.
+Domain (ζυθοποιείο / θερμοκρασία ζύμωσης / batches):
+
+Τα όρια θερμοκρασίας ανά προϊόν (γιατί lager/pilsner ζυμώνεται ψυχρά ~7–13 °C ενώ
+ale θερμότερα ~18–22 °C — άρα μια Pilsner στους 20 °C είναι εκτός προδιαγραφών):
+https://byo.com/articles/fermentation-temperature-control-tips-from-the-pros/ ·
+https://homebrewersassociation.org/how-to-brew/understanding-fermentation-temperature-control/
+Αυτό τεκμηριώνει την απόφαση τα όρια να ανήκουν στο batch (ανά προϊόν/περίοδο), όχι στο tank.
+
+OEE — γενικός ορισμός & εφαρμογή σε Food & Beverage:
+
+Ορισμός (Availability × Performance × Quality, world-class ~85%):
+https://www.oee.com/ · https://en.wikipedia.org/wiki/Overall_equipment_effectiveness
+OEE ειδικά στον κλάδο τροφίμων/ποτών (γιατί συχνά εστιάζει σε Availability & Quality):
+https://www.vorne.com/solutions/industries/food-and-beverage/ ·
+https://www.worximity.com/blog/ways-to-calculate-oee-in-the-food-and-beverage-manufacturing-industry
+
+Tech stack (υλοποίηση):
+
+TimescaleDB hypertables & chunks: https://docs.timescale.com/use-timescale/latest/hypertables/
+FastAPI & Pydantic: https://fastapi.tiangolo.com/ · https://docs.pydantic.dev/latest/
+psycopg 3 (parameterized queries): https://www.psycopg.org/psycopg3/docs/
