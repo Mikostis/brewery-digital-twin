@@ -176,3 +176,7 @@ Dockerfile
 - TimescaleDB hypertables & chunks: https://docs.timescale.com/use-timescale/latest/hypertables/
 - FastAPI & Pydantic: https://fastapi.tiangolo.com/ · https://docs.pydantic.dev/latest/
 - psycopg 3 (parameterized queries): https://www.psycopg.org/psycopg3/docs/
+
+## Documentation
+
+Visual documentation με τα αρχικά design sketches (χειρόγραφα) και dashboard screenshots: [docs/brewery_hybrid_doc.pdf](docs/brewery__doc.pdf)
