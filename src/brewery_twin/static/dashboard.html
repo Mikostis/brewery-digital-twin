@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Brewery Digital Twin — Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: system-ui, Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            margin: 0;
+            padding: 24px;
+        }
+
+        h1 {
+            color: #38bdf8;
+            margin: 0 0 4px;
+        }
+
+        .sub {
+            color: #94a3b8;
+            margin: 0 0 24px;
+            font-size: 14px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .card h2 {
+            margin: 0 0 12px;
+            font-size: 16px;
+            color: #cbd5e1;
+        }
+
+        .chart-label {
+            font-size: 12px;
+            color: #94a3b8;
+            margin: 10px 0 2px;
+        }
+
+        .kpis {
+            display: flex;
+            gap: 16px;
+            margin-top: 14px;
+        }
+
+        .kpi {
+            flex: 1;
+            text-align: center;
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .kpi .label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+
+        .kpi .value {
+            font-size: 26px;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .status.ok {
+            background: #064e3b;
+            color: #6ee7b7;
+        }
+
+        .status.alert {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        .oee {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🍺 Brewery Digital Twin</h1>
+    <p class="sub">Live process monitoring — updates every 3 seconds</p>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Tank 1 — Pale Ale <span id="status1" class="status ok">OK</span></h2>
+            <div class="chart-label">Temperature (°C)</div>
+            <canvas id="chart1" height="100"></canvas>
+            <div class="chart-label">Pressure (bar)</div>
+            <canvas id="press1" height="60"></canvas>
+            <div class="kpis">
+                <div class="kpi">
+                    <div class="label">OEE</div>
+                    <div class="value oee" id="oee1">—</div>
+                </div>
+                <div class="kpi">
+                    <div class="label">Quality</div>
+                    <div class="value" id="q1">—</div>
+                </div>
+                <div class="kpi">
+                    <div class="label">Anomalies</div>
+                    <div class="value" id="a1">—</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Tank 2 — Pilsner <span id="status2" class="status ok">OK</span></h2>
+            <div class="chart-label">Temperature (°C)</div>
+            <canvas id="chart2" height="100"></canvas>
+            <div class="chart-label">Level (cm)</div>
+            <canvas id="press2" height="60"></canvas>
+            <div class="kpis">
+                <div class="kpi">
+                    <div class="label">OEE</div>
+                    <div class="value oee" id="oee2">—</div>
+                </div>
+                <div class="kpi">
+                    <div class="label">Quality</div>
+                    <div class="value" id="q2">—</div>
+                </div>
+                <div class="kpi">
+                    <div class="label">Anomalies</div>
+                    <div class="value" id="a2">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function makeChart(canvasId, color) {
+            return new Chart(document.getElementById(canvasId), {
+                type: "line",
+                data: {
+                    labels: [], datasets: [{
+                        label: "", data: [], borderColor: color,
+                        backgroundColor: color + "22", tension: 0.3, fill: true
+                    }]
+                },
+                options: {
+                    scales: { y: { beginAtZero: false } },
+                    plugins: { legend: { display: false } }, animation: false
+                },
+            });
+        }
+
+        const charts = { 1: makeChart("chart1", "#38bdf8"), 2: makeChart("chart2", "#a78bfa") };
+        // Tank 1 has a pressure sensor; Tank 2 has a level sensor instead
+        const secondary = {
+            1: { chart: makeChart("press1", "#fbbf24"), sensor: "pressure" },
+            2: { chart: makeChart("press2", "#fbbf24"), sensor: "level" },
+        };
+
+        async function getJSON(url) {
+            const res = await fetch(url);
+            return res.ok ? await res.json() : null;
+        }
+
+        function pushPoint(chart, value) {
+            if (chart.data.labels.length >= 20) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            chart.data.labels.push(new Date().toLocaleTimeString());
+            chart.data.datasets[0].data.push(value);
+            chart.update();
+        }
+
+        async function refreshTank(id) {
+            // temperature chart
+            const stats = await getJSON(`/tanks/${id}/stats?sensor_type=temperature&minutes=5`);
+            if (stats) pushPoint(charts[id], stats.average);
+
+            // secondary chart (pressure for tank 1, level for tank 2)
+            const sec = secondary[id];
+            const secStats = await getJSON(`/tanks/${id}/stats?sensor_type=${sec.sensor}&minutes=5`);
+            if (secStats) pushPoint(sec.chart, secStats.average);
+
+            // OEE + quality
+            const oee = await getJSON(`/tanks/${id}/oee`);
+            if (oee) {
+                document.getElementById("oee" + id).textContent = oee.oee_percent + "%";
+                document.getElementById("q" + id).textContent = oee.quality_percent + "%";
+            }
+
+            // anomalies + status badge
+            const anom = await getJSON(`/tanks/${id}/anomalies`);
+            if (anom) {
+                document.getElementById("a" + id).textContent = anom.anomaly_rate_percent + "%";
+                const status = document.getElementById("status" + id);
+                if (anom.anomaly_rate_percent > 5) {
+                    status.className = "status alert"; status.textContent = "ALERT";
+                } else {
+                    status.className = "status ok"; status.textContent = "OK";
+                }
+            }
+        }
+
+        function refreshAll() { refreshTank(1); refreshTank(2); }
+        refreshAll();
+        setInterval(refreshAll, 3000);
+    </script>
+</body>
+
+</html>
