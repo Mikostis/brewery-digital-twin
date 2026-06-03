@@ -90,6 +90,14 @@ POSTGRES_DB=brewery
 | GET    | `/tanks/{id}/anomalies` | Μετρήσεις εκτός των ορίων του ενεργού batch |
 | GET    | `/tanks/{id}/oee`       | Εκτίμηση OEE                                |
 
+## Frontend
+
+Το dashboard είναι σκόπιμα ελαφρύ: απλό HTML + Chart.js (από CDN), σερβιρισμένο
+απευθείας από το ίδιο το FastAPI στο `/`. Η επιλογή ήταν συνειδητή — ο στόχος ήταν
+να **αναδείξει το backend** και να τρέχει αξιόπιστα με ένα `docker compose up`, χωρίς
+build step ή ξεχωριστό frontend container που προσθέτουν κινούμενα μέρη στο demo.
+Σε ένα production σύστημα θα επέλεγα κάτι πιο δομημένο (π.χ. React).
+
 ## Tests
 
 ```bash
@@ -145,27 +153,26 @@ Dockerfile
 - Πλήρης υπολογισμός Performance στο OEE με production-rate counters
 - Διαχείριση batch lifecycle (έναρξη/λήξη παρτίδων)
 
-Πηγές / References
+## Πηγές / References
+
 Οι αρχιτεκτονικές και domain αποφάσεις στηρίχθηκαν σε επίσημη τεκμηρίωση και
 καθιερωμένες πηγές του κλάδου.
-Domain (ζυθοποιείο / θερμοκρασία ζύμωσης / batches):
 
-Τα όρια θερμοκρασίας ανά προϊόν (γιατί lager/pilsner ζυμώνεται ψυχρά ~7–13 °C ενώ
-ale θερμότερα ~18–22 °C — άρα μια Pilsner στους 20 °C είναι εκτός προδιαγραφών):
-https://byo.com/articles/fermentation-temperature-control-tips-from-the-pros/ ·
-https://homebrewersassociation.org/how-to-brew/understanding-fermentation-temperature-control/
-Αυτό τεκμηριώνει την απόφαση τα όρια να ανήκουν στο batch (ανά προϊόν/περίοδο), όχι στο tank.
+**Domain (ζυθοποιείο / θερμοκρασία ζύμωσης / batches):**
+- Τα όρια θερμοκρασίας ανά προϊόν (γιατί lager/pilsner ζυμώνεται ψυχρά ~7–13 °C ενώ
+  ale θερμότερα ~18–22 °C — άρα μια Pilsner στους 20 °C είναι εκτός προδιαγραφών):
+  https://byo.com/articles/fermentation-temperature-control-tips-from-the-pros/ ·
+  https://homebrewersassociation.org/how-to-brew/understanding-fermentation-temperature-control/
+- Αυτό τεκμηριώνει την απόφαση τα όρια να ανήκουν στο `batch` (ανά προϊόν/περίοδο), όχι στο `tank`.
 
-OEE — γενικός ορισμός & εφαρμογή σε Food & Beverage:
+**OEE — γενικός ορισμός & εφαρμογή σε Food & Beverage:**
+- Ορισμός (Availability × Performance × Quality, world-class ~85%):
+  https://www.oee.com/ · https://en.wikipedia.org/wiki/Overall_equipment_effectiveness
+- OEE ειδικά στον κλάδο τροφίμων/ποτών (γιατί συχνά εστιάζει σε Availability & Quality):
+  https://www.vorne.com/solutions/industries/food-and-beverage/ ·
+  https://www.worximity.com/blog/ways-to-calculate-oee-in-the-food-and-beverage-manufacturing-industry
 
-Ορισμός (Availability × Performance × Quality, world-class ~85%):
-https://www.oee.com/ · https://en.wikipedia.org/wiki/Overall_equipment_effectiveness
-OEE ειδικά στον κλάδο τροφίμων/ποτών (γιατί συχνά εστιάζει σε Availability & Quality):
-https://www.vorne.com/solutions/industries/food-and-beverage/ ·
-https://www.worximity.com/blog/ways-to-calculate-oee-in-the-food-and-beverage-manufacturing-industry
-
-Tech stack (υλοποίηση):
-
-TimescaleDB hypertables & chunks: https://docs.timescale.com/use-timescale/latest/hypertables/
-FastAPI & Pydantic: https://fastapi.tiangolo.com/ · https://docs.pydantic.dev/latest/
-psycopg 3 (parameterized queries): https://www.psycopg.org/psycopg3/docs/
+**Tech stack (υλοποίηση):**
+- TimescaleDB hypertables & chunks: https://docs.timescale.com/use-timescale/latest/hypertables/
+- FastAPI & Pydantic: https://fastapi.tiangolo.com/ · https://docs.pydantic.dev/latest/
+- psycopg 3 (parameterized queries): https://www.psycopg.org/psycopg3/docs/
